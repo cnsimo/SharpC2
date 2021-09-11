@@ -21,10 +21,11 @@ namespace SharpC2.Services
             Console.WriteLine();
             Console.WriteLine(certificate.ToString());
 
-            var accept = ReadLine.Read("(accept? [y/N])> ");
+            Console.Write("accept? [y/N] > ");
+            var accept = Console.ReadLine();
 
-            if (!accept.Equals("Y", StringComparison.OrdinalIgnoreCase))
-                return false;
+            if (string.IsNullOrEmpty(accept)) return false;
+            if (!accept.Equals("Y", StringComparison.OrdinalIgnoreCase)) return false;
 
             _acceptedThumbprint = thumbprint;
             return true;

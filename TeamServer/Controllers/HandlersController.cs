@@ -99,9 +99,10 @@ namespace TeamServer.Controllers
             var task = handler.Start();
 
             if (task.IsFaulted) return BadRequest(task.Exception?.Message);
-            await _messageHub.Clients.All.HandlerStarted(name);
             
-            return NoContent();
+            var response = _mapper.Map<Handler, HandlerResponse>(handler);
+            await _messageHub.Clients.All.HandlerStarted(response);
+            return Ok(response);
         }
 
         [HttpPatch("{name}/stop")]
@@ -116,9 +117,11 @@ namespace TeamServer.Controllers
                 return BadRequest("Handler is already stopped");
             
             handler.Stop();
-            await _messageHub.Clients.All.HandlerStopped(name);
             
-            return NoContent();
+            var response = _mapper.Map<Handler, HandlerResponse>(handler);
+            await _messageHub.Clients.All.HandlerStopped(response);
+            
+            return Ok(response);
         }
 
         [HttpDelete("{name}")]

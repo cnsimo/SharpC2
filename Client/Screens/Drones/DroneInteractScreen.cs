@@ -130,13 +130,13 @@ namespace SharpC2.Screens
             if (!string.IsNullOrEmpty(filePath))
                 args = args.Where(s => !s.Equals(filePath)).ToArray();
 
-            await _api.TaskDrone(Name, module.Name, command.Name, args, artefact);
+            await _api.TaskDrone(ScreenName, module.Name, command.Name, args, artefact);
             return true;
         }
         
         private void OnDroneModuleLoaded(string droneGuid, DroneModule module)
         {
-            if (!droneGuid.Equals(Name, StringComparison.OrdinalIgnoreCase)) return;
+            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
             
             Drone.Modules.Add(module);
             
@@ -152,19 +152,19 @@ namespace SharpC2.Screens
 
         private void OnDroneTasked(string droneGuid, string taskGuid)
         {
-            if (!droneGuid.Equals(Name, StringComparison.OrdinalIgnoreCase)) return;
+            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
             CustomConsole.WriteMessage($"Drone tasked: {taskGuid}");
         }
         
         private void OnDroneDataSent(string droneGuid, int size)
         {
-            if (!droneGuid.Equals(Name, StringComparison.OrdinalIgnoreCase)) return;
+            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
             CustomConsole.WriteMessage($"Drone checked in. Sent {size} bytes.");
         }
 
         private void OnDroneTaskRunning(string droneGuid, byte[] output)
         {
-            if (!droneGuid.Equals(Name, StringComparison.OrdinalIgnoreCase)) return;
+            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
             if (output is null || output.Length == 0) return;
 
             var text = Encoding.UTF8.GetString(output);
@@ -174,7 +174,7 @@ namespace SharpC2.Screens
         
         private void OnDroneTaskComplete(string droneGuid, byte[] output)
         {
-            if (!droneGuid.Equals(Name, StringComparison.OrdinalIgnoreCase)) return;
+            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
 
             if (output is not null && output.Length > 0)
             {
@@ -188,7 +188,7 @@ namespace SharpC2.Screens
         
         private void OnDroneTaskAborted(string droneGuid, byte[] error)
         {
-            if (!droneGuid.Equals(Name, StringComparison.OrdinalIgnoreCase)) return;
+            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
             CustomConsole.WriteWarning("Task threw an exception.");
 
             if (error is null || error.Length <= 0) return;
@@ -199,7 +199,7 @@ namespace SharpC2.Screens
         
         private void OnDroneTaskCancelled(string droneGuid, string taskGuid)
         {
-            if (!droneGuid.Equals(Name, StringComparison.OrdinalIgnoreCase)) return;
+            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
             CustomConsole.WriteWarning($"Task {taskGuid} cancelled");
         }
 
@@ -213,8 +213,8 @@ namespace SharpC2.Screens
 
         public override async Task LoadInitialData()
         {
-            if (string.IsNullOrEmpty(Name)) return;
-            Drone = await _api.GetDrone(Name);
+            if (string.IsNullOrEmpty(ScreenName)) return;
+            Drone = await _api.GetDrone(ScreenName);
         }
     }
     

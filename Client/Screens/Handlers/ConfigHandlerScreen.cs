@@ -30,13 +30,13 @@ namespace SharpC2.Screens
 
         public override async Task LoadInitialData()
         {
-            if (string.IsNullOrEmpty(Name)) return;
-            Handler = await _api.GetHandler(Name);
+            if (string.IsNullOrEmpty(ScreenName)) return;
+            Handler = await _api.GetHandler(ScreenName);
         }
 
         private async Task<bool> ShowParameters(string[] args)
         {
-            Handler = await _api.GetHandler(Name);
+            Handler = await _api.GetHandler(ScreenName);
 
             SharpSploitResultList<HandlerParameter> parameters = new();
             parameters.AddRange(Handler.Parameters);
@@ -63,19 +63,19 @@ namespace SharpC2.Screens
 
             parameter.SetValue(value);
 
-            await _api.SetHandlerParameter(Name, key, value);
+            await _api.SetHandlerParameter(ScreenName, key, value);
             return true;
         }
         
         private async Task<bool> StartHandler(string[] args)
         {
-            await _api.StartHandler(Name);
+            await _api.StartHandler(ScreenName);
             return true;
         }
         
         private async Task<bool> StopHandler(string[] args)
         {
-            await _api.StopHandler(Name);
+            await _api.StopHandler(ScreenName);
             return true;
         }
     }

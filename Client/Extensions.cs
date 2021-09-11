@@ -3,26 +3,37 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text.Json;
-using System.Text.RegularExpressions;
+
+using PrettyPrompt.Consoles;
 
 namespace SharpC2
 {
     public static class Extensions
     {
-
-        public static string Serialize<T>(this T data)
+        public static void PrintMessage(this IConsole console, string message)
         {
-            var options = new JsonSerializerOptions {PropertyNameCaseInsensitive = true};
-            return JsonSerializer.Serialize(data, options);
+            var currentColour = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Green;
+            console.WriteLine(Environment.NewLine + $"[+] {message}" + Environment.NewLine);
+            Console.ForegroundColor = currentColour;
         }
         
-        public static T Deserialize<T>(this string json)
+        public static void PrintWarning(this IConsole console, string warning)
         {
-            var options = new JsonSerializerOptions {PropertyNameCaseInsensitive = true};
-            return JsonSerializer.Deserialize<T>(json, options);
+            var currentColour = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            console.WriteLine(Environment.NewLine + $"[!] {warning}" + Environment.NewLine);
+            Console.ForegroundColor = currentColour;
         }
-
+        
+        public static void PrintError(this IConsole console, string error)
+        {
+            var currentColour = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.DarkRed;
+            console.WriteLine(Environment.NewLine + $"[x] {error}" + Environment.NewLine);
+            Console.ForegroundColor = currentColour;
+        }
+        
         public static IEnumerable<string> GetPartialPath(string path)
         {
             // could be something like C:\Users or /Users

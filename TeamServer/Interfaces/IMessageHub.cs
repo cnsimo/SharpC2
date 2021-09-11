@@ -1,4 +1,7 @@
 ﻿using System.Threading.Tasks;
+
+using SharpC2.API.V1.Responses;
+
 using TeamServer.Models;
 
 namespace TeamServer.Interfaces
@@ -6,8 +9,8 @@ namespace TeamServer.Interfaces
     public interface IMessageHub
     {
         Task HandlerLoaded(string handler);
-        Task HandlerStarted(string handler);
-        Task HandlerStopped(string handler);
+        Task HandlerStarted(HandlerResponse handler);
+        Task HandlerStopped(HandlerResponse handler);
 
         Task HostedFileAdded(string filename);
         Task HostedFileDeleted(string filename);

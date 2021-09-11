@@ -1,75 +1,64 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using CommandLine;
+
 using Microsoft.Extensions.DependencyInjection;
 
-using SharpC2.Helpers;
-using SharpC2.Interfaces;
 using SharpC2.Screens;
 using SharpC2.Services;
 
 namespace SharpC2
 {
+    internal class Options
+    {
+        [Option('s', "server", Required = true, HelpText = "IP or hostname of Team Server.")]
+        public string Server { get; set; }
+        
+        [Option('n', "nick", Required = true, HelpText = "Nickname to connect with.")]
+        public string Nick { get; set; }
+        
+        [Option('p', "password", Required = true, HelpText = "Team Server's shared password.")]
+        public string Password { get; set; }
+    }
+
     internal static class Program
     {
         private static async Task Main(string[] args)
         {
             PrintLogo();
 
+            await Parser.Default.ParseArguments<Options>(args)
+                .MapResult(RunOptions, HandleParseErrors);
+        }
+
+        private static async Task RunOptions(Options opts)
+        {
             var sp = BuildServiceProvider();
-            var api = sp.GetRequiredService<IApiService>();
-            var factory = sp.GetRequiredService<IScreenFactory>();
+            var api = sp.GetRequiredService<ApiService>();
+            var factory = sp.GetRequiredService<ScreenFactory>();
             var signalR = sp.GetRequiredService<SignalRService>();
-            
-            var authenticated = false;
-            var authFailed = false;  //This is to avoid an infinite loop of login attempts
 
-            while (!authenticated)
+            api.InitClient(opts.Server, "8443", opts.Nick, opts.Password);
+
+            // test authentication
+            var handlers = await api.GetHandlers();
+
+            if (!handlers.Any())
             {
-                string server, port, nick, password;
-
-                if (args.Contains(new[] { "--server", "--port", "--nick", "--password" }) && !authFailed)
-                {
-                    
-                    server = args.GetValue("--server");
-                    port = args.GetValue("--port");
-                    nick = args.GetValue("--nick");
-                    password = args.GetValue("--password");
-                }
-                else
-                {
-                    server = PromptForInput("server");
-                    port = PromptForInput("port");
-                    nick = PromptForInput("nick");
-                    password = PromptForInput("pass", true);
-                }
-
-                api.InitClient(server, port, nick, password);
-
-                // test authentication
-                var handlers = await api.GetHandlers();
-
-                if (!handlers.Any())
-                {
-                    Console.WriteLine();
-                    Console.WriteLine("Authentication failed");
-                    authFailed = true;
-                    continue;
-                }
-                
-                authenticated = true;
-                
-                // connect to SignalR
-                await signalR.Connect(server, port, nick, password);
+                Console.WriteLine("[x] Authentication failed");
+                return;
             }
 
-            // load the drone screen as a pseudo home screen
-            var screen = factory.GetScreen(Screen.ScreenType.Drones);
-            screen.SetName("drones");
-            await screen.LoadInitialData();
-            screen.AddCommands();
-            await screen.Show();
+            // connect to SignalR
+            await signalR.Connect(opts.Server, "8443", opts.Nick, opts.Password);
+            
+            Console.Clear();
+
+            using var droneScreen = (DroneScreen) factory.GetScreen(ScreenFactory.ScreenType.Drones);
+            await droneScreen.Show();
         }
 
         private static void PrintLogo()
@@ -84,27 +73,19 @@ namespace SharpC2
             Console.WriteLine();
         }
 
-        private static string PromptForInput(string label, bool secure = false)
+        private static async Task HandleParseErrors(IEnumerable<Error> errs)
         {
-            string input;
-            do
-            {
-                input = secure
-                    ? ReadLine.ReadPassword($"({label})> ")
-                    : ReadLine.Read($"({label})> ");
-            }
-            while (string.IsNullOrEmpty(input));
-
-            return input;
+            foreach (var err in errs)
+                await Console.Error.WriteLineAsync(err?.ToString());
         }
 
         private static ServiceProvider BuildServiceProvider()
         {
             var sp = new ServiceCollection()
                 .AddSingleton<CertificateService>()
-                .AddSingleton<IApiService, ApiService>()
+                .AddSingleton<ApiService>()
                 .AddSingleton<SignalRService>()
-                .AddSingleton<IScreenFactory, ScreenFactory>()
+                .AddSingleton<ScreenFactory>()
                 .AddAutoMapper(typeof(Program));
 
             return sp.BuildServiceProvider();

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.SignalR.Client;
 
+using SharpC2.API.V1.Responses;
 using SharpC2.Models;
 
 namespace SharpC2.Services
@@ -19,9 +20,9 @@ namespace SharpC2.Services
         }
         
         // Handlers
-        public event Action<string> HandlerLoaded;
-        public event Action<string> HandlerStarted;
-        public event Action<string> HandlerStopped;
+        public event Action<HandlerResponse> HandlerLoaded;
+        public event Action<HandlerResponse> HandlerStarted;
+        public event Action<HandlerResponse> HandlerStopped;
         
         // Hosted Files
         public event Action<string> HostedFileAdded;
@@ -54,9 +55,9 @@ namespace SharpC2.Services
             
             await connection.StartAsync();
 
-            connection.On<string>("HandlerLoaded", msg => HandlerLoaded?.Invoke(msg));
-            connection.On<string>("HandlerStarted", msg => HandlerStarted?.Invoke(msg));
-            connection.On<string>("HandlerStopped", msg => HandlerStopped?.Invoke(msg));
+            connection.On<HandlerResponse>("HandlerLoaded", h => HandlerLoaded?.Invoke(h));
+            connection.On<HandlerResponse>("HandlerStarted", h => HandlerStarted?.Invoke(h));
+            connection.On<HandlerResponse>("HandlerStopped", h => HandlerStopped?.Invoke(h));
             
             connection.On<string>("HostedFileAdded", filename => HostedFileAdded?.Invoke(filename));
             connection.On<string>("HostedFileDeleted", filename => HostedFileDeleted?.Invoke(filename));
