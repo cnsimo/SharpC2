@@ -35,7 +35,9 @@ namespace SharpC2.Screens
             
             ClientCommands.Add(new BackScreenCommand(this));
             ClientCommands.Add(new ListHandlersCommand(this));
+            ClientCommands.Add(new SetHandlerParameterCommand(this));
             ClientCommands.Add(new StartHandlerCommand(this));
+            ClientCommands.Add(new StopHandlerCommand(this));
             
             LoadHandlerData().GetAwaiter().GetResult();
         }
@@ -46,28 +48,22 @@ namespace SharpC2.Screens
             Handlers.AddRange(handlers);
         }
 
-        // public override void AddCommands()
-        // {
-        //     Commands.Add(new ScreenCommand("load", "Load a Handler DLL", LoadHandler, "load </path/to/handler.dll"));
-        //     Commands.Add(new ScreenCommand("list", "List Handlers", ListHandlers));
-        //     Commands.Add(new ScreenCommand("config", "Configure the given Handler", ConfigHandler, "config <handler>"));
-        //     Commands.Add(new ScreenCommand("start", "Start the given Handler", StartHandler, "start <handler>"));
-        //     Commands.Add(new ScreenCommand("stop", "Stop the given Handler", StopHandler, "stop <handler>"));
-        // }
-
         protected override Task<IReadOnlyList<CompletionItem>> FindCompletions(string input, int caret)
         {
             var textUntilCaret = input[..caret];
             var previousWordStart = textUntilCaret.LastIndexOfAny(new[] { ' ', '\n', '.', '(', ')' });
+            
             var typedWord = previousWordStart == -1
                 ? textUntilCaret.ToLower()
                 : textUntilCaret[(previousWordStart + 1)..].ToLower();
+
             var previousWord = previousWordStart == -1
                 ? ""
                 : input[..previousWordStart];
 
             if (previousWord.Equals("start", StringComparison.OrdinalIgnoreCase) ||
-                previousWord.Equals("stop", StringComparison.OrdinalIgnoreCase))
+                previousWord.Equals("stop", StringComparison.OrdinalIgnoreCase) ||
+                previousWord.Equals("set", StringComparison.OrdinalIgnoreCase))
             {
                 return Task.FromResult<IReadOnlyList<CompletionItem>>(
                     Handlers
@@ -76,7 +72,7 @@ namespace SharpC2.Screens
                             StartIndex = previousWordStart + 1,
                             ReplacementText = handler.Name,
                             DisplayText = $"{previousWord} {handler.Name}",
-                            ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(GetHandlerParametersAsString(handler.Parameters)))
+                            ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(handler.ToString()))
                         })
                         .ToArray()
                 );
@@ -94,16 +90,6 @@ namespace SharpC2.Screens
                     })
                     .ToArray()
             );
-        }
-
-        private string GetHandlerParametersAsString(IEnumerable<HandlerParameter> parameters)
-        {
-            var sb = new StringBuilder();
-
-            foreach (var parameter in parameters)
-                sb.AppendLine($"{parameter.Name} : {parameter.Value}");
-
-            return sb.ToString();
         }
 
         private void OnHandlerLoaded(HandlerResponse handler)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -6,21 +6,21 @@ using SharpC2.Screens;
 
 namespace SharpC2.ScreenCommands
 {
-    public class StartHandlerCommand : ScreenCommand
+    public class StopHandlerCommand : ScreenCommand
     {
-        public override string Name => "start";
-        public override string Description => "Start the specified Handler";
-        public override string Usage => "start [handler]";
-        public override Screen.CommandCallback Callback => StartHandler;
+        public override string Name => "stop";
+        public override string Description => "Stop the specified Handler";
+        public override string Usage => "stop [handler]";
+        public override Screen.CommandCallback Callback => StopHandler;
 
         private readonly Screen _screen;
 
-        public StartHandlerCommand(Screen screen)
+        public StopHandlerCommand(Screen screen)
         {
             _screen = screen;
         }
 
-        private async Task StartHandler(string[] args)
+        private async Task StopHandler(string[] args)
         {
             var screen = (HandlersScreen)_screen;
             
@@ -40,7 +40,7 @@ namespace SharpC2.ScreenCommands
                 return;
             }
 
-            var handler = await screen.Api.StartHandler(handlerName);
+            var handler = await screen.Api.StopHandler(handlerName);
             var index = screen.Handlers.IndexOf(existing);
             screen.Handlers[index] = handler;
         }
