@@ -48,7 +48,7 @@ namespace TeamServer.Handlers
             var message = await _tasks.GetDroneTasks(metadata);
 
             if (message is null) return NoContent();
-            await _hub.Clients.All.DroneDataSent(metadata.Guid, message.Data.Length);
+            await _hub.Clients.All.DroneDataSent(metadata, message.Data.Length);
             return Ok(message);
         }
 

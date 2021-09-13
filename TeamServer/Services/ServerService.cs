@@ -76,7 +76,7 @@ namespace TeamServer.Services
             }
             
             drone.CheckIn();
-            await _hub.Clients.All.DroneCheckedIn(drone.Metadata.Guid);
+            await _hub.Clients.All.DroneCheckedIn(drone.Metadata);
 
             switch (message.Type)
             {
@@ -107,8 +107,9 @@ namespace TeamServer.Services
         private async Task HandleRegisterDroneModule(DroneMetadata metadata, DroneModule module)
         {
             var drone = _drones.GetDrone(metadata.Guid);
-            await _hub.Clients.All.DroneModuleLoaded(metadata.Guid, module);
             drone.AddModule(module);
+            
+            await _hub.Clients.All.DroneModuleLoaded(metadata, module);
         }
 
         private void LoadDefaultModules()

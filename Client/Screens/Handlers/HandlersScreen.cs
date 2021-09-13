@@ -35,6 +35,7 @@ namespace SharpC2.Screens
             
             ClientCommands.Add(new BackScreenCommand(this));
             ClientCommands.Add(new ListHandlersCommand(this));
+            ClientCommands.Add(new ShowHandlerParametersCommand(this));
             ClientCommands.Add(new SetHandlerParameterCommand(this));
             ClientCommands.Add(new StartHandlerCommand(this));
             ClientCommands.Add(new StopHandlerCommand(this));
@@ -51,6 +52,7 @@ namespace SharpC2.Screens
         protected override Task<IReadOnlyList<CompletionItem>> FindCompletions(string input, int caret)
         {
             var textUntilCaret = input[..caret];
+            var wordSplits = input[..caret].Split(new[] { ' ', '\n', '.', '(', ')' });
             var previousWordStart = textUntilCaret.LastIndexOfAny(new[] { ' ', '\n', '.', '(', ')' });
             
             var typedWord = previousWordStart == -1
@@ -63,19 +65,41 @@ namespace SharpC2.Screens
 
             if (previousWord.Equals("start", StringComparison.OrdinalIgnoreCase) ||
                 previousWord.Equals("stop", StringComparison.OrdinalIgnoreCase) ||
-                previousWord.Equals("set", StringComparison.OrdinalIgnoreCase))
+                previousWord.Equals("set", StringComparison.OrdinalIgnoreCase) ||
+                previousWord.Equals("show", StringComparison.OrdinalIgnoreCase))
             {
                 return Task.FromResult<IReadOnlyList<CompletionItem>>(
                     Handlers
-                        .Select(handler => new CompletionItem
+                        .Select(h => new CompletionItem
                         {
                             StartIndex = previousWordStart + 1,
-                            ReplacementText = handler.Name,
-                            DisplayText = $"{previousWord} {handler.Name}",
-                            ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(handler.ToString()))
+                            ReplacementText = h.Name,
+                            DisplayText = h.Name,
+                            ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(h.ToString()))
                         })
                         .ToArray()
                 );
+            }
+
+            if (wordSplits.Length >= 2)
+            {
+                var handler = Handlers.FirstOrDefault(h =>
+                    h.Name.Equals(wordSplits[1], StringComparison.OrdinalIgnoreCase));
+
+                if (handler is not null)
+                {
+                    return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                        handler.Parameters
+                            .Select(p => new CompletionItem
+                            {
+                                StartIndex = previousWordStart + 1,
+                                ReplacementText = p.Name,
+                                DisplayText = $"{previousWord} {p.Name}",
+                                ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(p.ToString()))
+                            })
+                            .ToArray()
+                    );
+                }
             }
 
             return Task.FromResult<IReadOnlyList<CompletionItem>>(

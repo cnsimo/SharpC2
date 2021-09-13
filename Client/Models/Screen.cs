@@ -31,7 +31,8 @@ namespace SharpC2.Screens
         {
             Prompt = new Prompt(null, new PromptCallbacks
             {
-                CompletionCallback = FindCompletions
+                CompletionCallback = FindCompletions,
+                KeyPressCallbacks = { [ConsoleKey.Tab] = KeyPressCallback }
             });
 
             while (ScreenRunning)
@@ -55,7 +56,12 @@ namespace SharpC2.Screens
                 await command.Callback(args);
             }
         }
-        
+
+        protected virtual Task<KeyPressCallbackResult> KeyPressCallback(string text, int caret)
+        {
+            return Task.FromResult<KeyPressCallbackResult>(null);
+        }
+
         protected virtual Task<IReadOnlyList<CompletionItem>> FindCompletions(string input, int caret)
         {
             var textUntilCaret = input[..caret];
@@ -67,12 +73,12 @@ namespace SharpC2.Screens
             return Task.FromResult<IReadOnlyList<CompletionItem>>(
                 ClientCommands
                     .Where(command => command.Name.StartsWith(typedWord))
-                    .Select(fruit => new CompletionItem
+                    .Select(command => new CompletionItem
                     {
                         StartIndex = previousWordStart + 1,
-                        ReplacementText = fruit.Name,
-                        DisplayText = fruit.Name,
-                        ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(fruit.Description))
+                        ReplacementText = command.Name,
+                        DisplayText = command.Name,
+                        ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(command.Description))
                     })
                     .ToArray()
             );

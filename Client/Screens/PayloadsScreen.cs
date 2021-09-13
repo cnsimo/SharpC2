@@ -3,154 +3,181 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using PrettyPrompt;
+using PrettyPrompt.Completion;
 
-using SharpC2.Interfaces;
 using SharpC2.Models;
+using SharpC2.ScreenCommands;
+using SharpC2.ScreenCommands.PayloadCommands;
+using SharpC2.Services;
 
 namespace SharpC2.Screens
 {
     public class PayloadsScreen : Screen
     {
-        public IEnumerable<Handler> Handlers { get; private set; }
+        public override string ScreenName => "payloads";
         
-        private readonly Payload _payload = new();
-        private readonly IApiService _api;
+        public List<Handler> Handlers { get; } = new();
+        public Payload Payload { get; } = new();
+        public ApiService Api { get; }
 
-        public PayloadsScreen(IApiService api)
+
+        public PayloadsScreen(ApiService api)
         {
-            _api = api;
-        }
-        
-        public override void AddCommands()
-        {
-            Commands.Add(new ScreenCommand("show", "Show payload options", ShowPayload));
-            Commands.Add(new ScreenCommand("set", "Set a payload option", SetOption, "set <key> <value>"));
-            Commands.Add(new ScreenCommand("generate", "Generate payload", GeneratePayload, "generate </output/path>"));
+            Api = api;
             
-            ReadLine.AutoCompletionHandler = new PayloadsAutoComplete(this);
-        }
-
-        public override async Task LoadInitialData()
-        {
-            Handlers = await _api.GetHandlers();
-        }
-
-        private async Task<bool> GeneratePayload(string[] args)
-        {
-            if (args.Length < 2) return false;
-            var path = args[1];
+            ClientCommands.Add(new BackScreenCommand(this));
+            ClientCommands.Add(new ShowPayloadOptionsCommand(this));
+            ClientCommands.Add(new SetPayloadOptionCommand(this));
+            ClientCommands.Add(new GeneratePayloadCommand(this));
             
-            var targetDirectory = Path.GetDirectoryName(path);
-            if (!Directory.Exists(targetDirectory))
-            {
-                CustomConsole.WriteError("Target directory does not exist.");
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(_payload.Handler))
-            {
-                CustomConsole.WriteError("Please specify a Handler.");
-                return false;
-            }
-            
-            var payload = await _api.GeneratePayload(_payload);
-
-            try
-            {
-                await File.WriteAllBytesAsync(path, payload);
-            }
-            catch (Exception e)
-            {
-                CustomConsole.WriteError(e.Message);
-                return false;
-            }
-            
-            CustomConsole.WriteMessage($"Saved {payload.Length} bytes.");
-            return true;
-        }
-
-        private Task<bool> SetOption(string[] args)
-        {
-            if (args.Length < 3) return Task.FromResult(false);
-            
-            var key = args[1];
-            var value = args[2];
-
-            if (key.Equals("handler", StringComparison.OrdinalIgnoreCase))
-                _payload.Handler = value;
-            
-            if (key.Equals("format", StringComparison.OrdinalIgnoreCase))
-                _payload.Format = FormatFromString(value);
-
-            return Task.FromResult(true);
-        }
-
-        private Task<bool> ShowPayload(string[] args)
-        {
-            SharpSploitResultList<Payload> list = new() { _payload };
-            Console.WriteLine(list.ToString());
-            
-            return Task.FromResult(true);
-        }
-
-        private static Payload.PayloadFormat FormatFromString(string value)
-        {
-            if (value.Equals("exe", StringComparison.OrdinalIgnoreCase)) return Payload.PayloadFormat.Exe;
-            if (value.Equals("dll", StringComparison.OrdinalIgnoreCase)) return Payload.PayloadFormat.Dll;
-            if (value.Equals("powershell", StringComparison.OrdinalIgnoreCase)) return Payload.PayloadFormat.PowerShell;
-            if (value.Equals("raw", StringComparison.OrdinalIgnoreCase)) return Payload.PayloadFormat.Raw;
-            if (value.Equals("svc", StringComparison.OrdinalIgnoreCase)) return Payload.PayloadFormat.Svc;
-
-            throw new Exception("Invalid payload format");
-        }
-    }
-
-    public class PayloadsAutoComplete : AutoCompleteHandler
-    {
-        private readonly PayloadsScreen _screen;
-
-        public PayloadsAutoComplete(PayloadsScreen screen)
-        {
-            _screen = screen;
+            LoadHandlerData().GetAwaiter().GetResult();
         }
         
-        public override string[] GetSuggestions(string text, int index)
-        {
-            var commands = _screen.Commands.Select(c => c.Name).ToArray();
-            var split = text.Split(' ');
+        // public override void AddCommands()
+        // {
+        //     Commands.Add(new ScreenCommand("show", "Show payload options", ShowPayload));
+        //     Commands.Add(new ScreenCommand("set", "Set a payload option", SetOption, "set <key> <value>"));
+        //     Commands.Add(new ScreenCommand("generate", "Generate payload", GeneratePayload, "generate </output/path>"));
+        //     
+        //     ReadLine.AutoCompletionHandler = new PayloadsAutoComplete(this);
+        // }
 
-            if (split.Length == 1)
+        private async Task LoadHandlerData()
+        {
+            var handlers = await Api.GetHandlers();
+            Handlers.AddRange(handlers);
+        }
+
+        protected override Task<IReadOnlyList<CompletionItem>> FindCompletions(string input, int caret)
+        {
+            var textUntilCaret = input[..caret];
+            var wordSplits = input[..caret].Split(new[] { ' ', '\n', '.', '(', ')' });
+            var previousWordStart = textUntilCaret.LastIndexOfAny(new[] { ' ', '\n', '.', '(', ')' });
+            
+            var typedWord = previousWordStart == -1
+                ? textUntilCaret.ToLower()
+                : textUntilCaret[(previousWordStart + 1)..].ToLower();
+            
+            var previousWord = previousWordStart == -1
+                ? ""
+                : input[..previousWordStart];
+
+            if (previousWord.Equals("set", StringComparison.OrdinalIgnoreCase))
             {
-                return string.IsNullOrEmpty(split[0])
-                    ? commands
-                    : commands.Where(c => c.StartsWith(split[0])).ToArray();
+                return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                    new[]
+                    {
+                        new CompletionItem
+                        {
+                            StartIndex = previousWordStart + 1,
+                            ReplacementText = "handler",
+                            DisplayText = "handler",
+                            ExtendedDescription =
+                                new Lazy<Task<string>>(() => Task.FromResult("Set the payload Handler"))
+                        },
+                        new CompletionItem
+                        {
+                            StartIndex = previousWordStart + 1,
+                            ReplacementText = "format",
+                            DisplayText = "format",
+                            ExtendedDescription =
+                                new Lazy<Task<string>>(() => Task.FromResult("Set the payload format"))
+                        }
+                    });
             }
 
-            if (split.Length == 2)
+            if (previousWord.Equals("generate", StringComparison.OrdinalIgnoreCase))
             {
-                if (split[0].StartsWith("help", StringComparison.OrdinalIgnoreCase))
-                    return commands.Where(c => c.StartsWith(split[1])).ToArray();
-
-                if (split[0].StartsWith("set", StringComparison.OrdinalIgnoreCase))
-                    return new[] {"handler", "format", "dllexport"};
+                var paths = Utilities.GetPartialPath(typedWord);
                 
-                if (text.StartsWith("generate", StringComparison.OrdinalIgnoreCase))
-                    return Extensions.GetPartialPath(split[1]).ToArray();
+                return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                    paths
+                        .Select(path => new CompletionItem
+                        {
+                            StartIndex = previousWordStart + 1,
+                            ReplacementText = path,
+                            DisplayText = path,
+                            ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(Payload.ToString()))
+                        })
+                        .ToArray()
+                );
             }
 
-            if (split.Length == 3)
+            if (wordSplits.Length >= 2)
             {
-                if (split[1].Contains("handler", StringComparison.OrdinalIgnoreCase))
-                    return _screen.Handlers.Select(h => h.Name).ToArray();
-
-                if (split[1].Contains("format", StringComparison.OrdinalIgnoreCase))
-                    return Enum.GetValues(typeof(Payload.PayloadFormat))
-                        .Cast<Payload.PayloadFormat>()
-                        .Select(f => f.ToString())
-                        .ToArray();
+                var split = previousWord.Split(" ");
+                if (split[1].Equals("handler", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                        Handlers
+                            .Select(h => new CompletionItem
+                            {
+                                StartIndex = previousWordStart + 1,
+                                ReplacementText = h.Name,
+                                DisplayText = h.Name,
+                                ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(h.ToString()))
+                            })
+                            .ToArray()
+                    );
+                }
+                
+                if (split[1].Equals("format", StringComparison.OrdinalIgnoreCase))
+                {
+                    var formats = Enum.GetValues(typeof(Payload.PayloadFormat)).Cast<Payload.PayloadFormat>();
+                    
+                    return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                        formats
+                            .Select(f => new CompletionItem
+                            {
+                                StartIndex = previousWordStart + 1,
+                                ReplacementText = f.ToString(),
+                                DisplayText = f.ToString(),
+                                ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(""))
+                            })
+                            .ToArray()
+                    );
+                }
             }
-            
-            return Array.Empty<string>();
+
+            return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                ClientCommands
+                    .Where(command => command.Name.StartsWith(typedWord))
+                    .Select(command => new CompletionItem
+                    {
+                        StartIndex = previousWordStart + 1,
+                        ReplacementText = command.Name,
+                        DisplayText = command.Name,
+                        ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(command.Description))
+                    })
+                    .ToArray()
+            );
         }
+
+        // private Task<bool> SetOption(string[] args)
+        // {
+        //     if (args.Length < 3) return Task.FromResult(false);
+        //     
+        //     var key = args[1];
+        //     var value = args[2];
+        //
+        //     if (key.Equals("handler", StringComparison.OrdinalIgnoreCase))
+        //         _payload.Handler = value;
+        //     
+        //     if (key.Equals("format", StringComparison.OrdinalIgnoreCase))
+        //         _payload.Format = FormatFromString(value);
+        //
+        //     return Task.FromResult(true);
+        // }
+        //
+        // private Task<bool> ShowPayload(string[] args)
+        // {
+        //     SharpSploitResultList<Payload> list = new() { _payload };
+        //     Console.WriteLine(list.ToString());
+        //     
+        //     return Task.FromResult(true);
+        // }
+
+        
     }
 }

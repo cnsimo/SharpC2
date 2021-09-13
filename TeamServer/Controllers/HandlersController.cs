@@ -63,9 +63,9 @@ namespace TeamServer.Controllers
             var root = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Path.ToUriComponent()}";
             var path = $"{root}/{handler.Name}";
 
-            await _messageHub.Clients.All.HandlerLoaded(handler.Name);
-
-            return Created(path, handler);
+            var response = _mapper.Map<Handler, HandlerResponse>(handler);
+            await _messageHub.Clients.All.HandlerLoaded(response);
+            return Created(path, response);
         }
 
         [HttpPut("{name}")]
@@ -73,9 +73,10 @@ namespace TeamServer.Controllers
         {
             var handler = _handlers.GetHandler(name);
             if (handler is null) return NotFound();
-            
             handler.SetParameters(parameters);
-            return NoContent();
+            
+            var response = _mapper.Map<Handler, HandlerResponse>(handler);
+            return Ok(response);
         }
 
         [HttpPatch("{name}")]
@@ -83,9 +84,10 @@ namespace TeamServer.Controllers
         {
             var handler = _handlers.GetHandler(name);
             if (handler is null) return NotFound();
-
             handler.SetParameter(key, value);
-            return NoContent();
+            
+            var response = _mapper.Map<Handler, HandlerResponse>(handler);
+            return Ok(response);
         }
 
         [HttpPatch("{name}/start")]
@@ -120,7 +122,6 @@ namespace TeamServer.Controllers
             
             var response = _mapper.Map<Handler, HandlerResponse>(handler);
             await _messageHub.Clients.All.HandlerStopped(response);
-            
             return Ok(response);
         }
 

@@ -26,8 +26,6 @@
     <ItemGroup>
       <Compile Remove="Screens\Handlers\ConfigHandlerScreen.cs" />
       <Compile Remove="Screens\HostedFilesScreen.cs" />
-      <Compile Remove="Screens\PayloadsScreen.cs" />
-      <Compile Remove="Screens\Drones\DroneInteractScreen.cs" />
     </ItemGroup>
 
 </Project>

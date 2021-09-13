@@ -15,15 +15,15 @@ namespace SharpC2.Services
             _signalR = signalR;
         }
 
-        public Screen GetScreen(ScreenType type)
+        public Screen GetScreen(ScreenType type, string name = null)
         {
             Screen screen = type switch
             {
                 ScreenType.Drones => new DroneScreen(_apiService, _signalR, this),
                 ScreenType.Handlers => new HandlersScreen(_apiService, _signalR, this),
                 // ScreenType.HandlerConfig => new ConfigHandlerScreen(_apiService),
-                // ScreenType.DroneInteract => new DroneInteractScreen(_apiService, _signalR),
-                // ScreenType.Payloads => new PayloadsScreen(_apiService),
+                ScreenType.DroneInteract => new DroneInteractScreen(name, _apiService, _signalR),
+                ScreenType.Payloads => new PayloadsScreen(_apiService),
                 // ScreenType.HostedFiles => new HostedFilesScreen(_apiService, _signalR),
                 
                 _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)

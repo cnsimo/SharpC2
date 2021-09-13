@@ -62,7 +62,7 @@ namespace TeamServer.Controllers
             var path = $"{root}/{task.TaskGuid}";
 
             var response = _mapper.Map<DroneTask, DroneTaskResponse>(task);
-            await _hub.Clients.All.DroneTasked(droneGuid, task.TaskGuid);
+            await _hub.Clients.All.DroneTasked(drone.Metadata, response);
             return Created(path, response);
         }
 

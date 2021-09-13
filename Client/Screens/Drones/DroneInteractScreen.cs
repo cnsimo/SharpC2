@@ -1,29 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-using SharpC2.Interfaces;
+using PrettyPrompt.Completion;
+
+using SharpC2.API.V1.Responses;
 using SharpC2.Models;
+using SharpC2.ScreenCommands;
 using SharpC2.Services;
 
 namespace SharpC2.Screens
 {
-    public class DroneInteractScreen : Screen
+    public class DroneInteractScreen : Screen, IDisposable
     {
-        private readonly IApiService _api;
+        public override string ScreenName { get; }
+        
+        private readonly ApiService _api;
         private readonly SignalRService _signalR;
 
         public Drone Drone { get; private set; }
 
-        public DroneInteractScreen(IApiService api, SignalRService signalR)
+        public DroneInteractScreen(string droneGuid, ApiService api, SignalRService signalR)
         {
+            ScreenName = droneGuid;
+            
             _api = api;
             _signalR = signalR;
+            
+            ClientCommands.Add(new BackScreenCommand(this));
 
             _signalR.DroneModuleLoaded += OnDroneModuleLoaded;
             _signalR.DroneTasked += OnDroneTasked;
@@ -32,70 +39,97 @@ namespace SharpC2.Screens
             _signalR.DroneTaskComplete += OnDroneTaskComplete;
             _signalR.DroneTaskAborted += OnDroneTaskAborted;
             _signalR.DroneTaskCancelled += OnDroneTaskCancelled;
+
+            LoadDroneData().GetAwaiter().GetResult();
         }
 
-        public override void AddCommands()
+        private void AddModuleCommandsToScreen(IEnumerable<DroneModule.Command> commands)
         {
-            if (Drone is null) return;
-            
-            // remove default "exit" command
-            var exit = Commands.FirstOrDefault(c => c.Name.Equals("exit", StringComparison.OrdinalIgnoreCase));
-            Commands.Remove(exit);
-
-            foreach (var module in Drone.Modules)
+            foreach (var command in commands)
             {
-                foreach (var command in module.Commands)
+                var droneCommand = new DroneCommand(
+                    command.Name,
+                    command.Description,
+                    command.Usage,
+                    ExecuteDroneCommand);
+
+                var existing = ClientCommands.FirstOrDefault(c =>
+                    c.Name.Equals(command.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existing is not null)
                 {
-                    Commands.Add(new ScreenCommand(
-                        name: command.Name,
-                        description: command.Description,
-                        usage: command.Usage,
-                        callback: ExecuteDroneCommand));
+                    var index = ClientCommands.IndexOf(existing);
+                    ClientCommands[index] = droneCommand;
+                }
+                else
+                {
+                    ClientCommands.Add(droneCommand);   
                 }
             }
-            
-            ReadLine.AutoCompletionHandler = new DroneInteractAutoComplete(this);
         }
 
-        private async Task<bool> ExecuteDroneCommand(string[] args)
+        protected override Task<IReadOnlyList<CompletionItem>> FindCompletions(string input, int caret)
+        {
+            var textUntilCaret = input[..caret];
+            var previousWordStart = textUntilCaret.LastIndexOfAny(new[] { ' ', '\n', '.', '(', ')' });
+            
+            var typedWord = previousWordStart == -1
+                ? textUntilCaret.ToLower()
+                : textUntilCaret[(previousWordStart + 1)..].ToLower();
+
+            return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                ClientCommands
+                    .Where(command => command.Name.StartsWith(typedWord))
+                    .Select(command => new CompletionItem
+                    {
+                        StartIndex = previousWordStart + 1,
+                        ReplacementText = command.Name,
+                        DisplayText = command.Name,
+                        ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult($"{command.Description}{Environment.NewLine}{command.Usage}"))
+                    })
+                    .ToArray()
+            );
+        }
+
+        private async Task ExecuteDroneCommand(string[] args)
         {
             // get the module from alias
             var module = Drone.Modules.FirstOrDefault(m =>
                 m.Commands.Any(c =>
                     c.Name.Equals(args[0], StringComparison.OrdinalIgnoreCase)));
-
+        
             if (module is null)
             {
-                CustomConsole.WriteError("Module not found");
-                return false;
+                Console.PrintError("Module not found");
+                return;
             }
-
+        
             var command = module.Commands.FirstOrDefault(c =>
                 c.Name.Equals(args[0], StringComparison.OrdinalIgnoreCase));
-            
+        
             if (command is null)
             {
-                CustomConsole.WriteError("Unknown command");
-                return false;
+                Console.PrintError("Unknown command");
+                return;
             }
-            
+        
             // drop the alias
             args = args[1..].ToArray();
-
+        
             var artefact = Array.Empty<byte>();
-
+        
             // process all the args
             var commandArgs = command.Arguments?.ToArray();
-            
+        
             // first check the count to see if there are enough
             if (args.Length < commandArgs?.Where(a => !a.Optional).Count())
             {
-                CustomConsole.WriteError("Not enough arguments");
-                return false;
+                Console.PrintError("Not enough arguments");
+                return;
             }
-
+        
             string filePath = null;
-            
+        
             if (args.Length > 0)
             {
                 for (var i = 0; i < commandArgs?.Where(a => !a.Optional).Count(); i++)
@@ -103,156 +137,125 @@ namespace SharpC2.Screens
                     // is the arg none-optional
                     if (commandArgs[i].Optional && string.IsNullOrEmpty(args[i]))
                     {
-                        CustomConsole.WriteError($"{commandArgs[i].Label} is mandatory.");
-                        return false;
+                        Console.PrintError($"{commandArgs[i].Label} is mandatory.");
+                        return;
                     }
-
+        
                     // is the arg a file
                     if (!commandArgs[i].Artefact) continue;
-
+        
                     filePath = args[i];
                     if (!File.Exists(filePath))
                     {
-                        CustomConsole.WriteError($"{filePath} not found.");
-                        return false;
+                        Console.PrintError($"{filePath} not found.");
+                        return;
                     }
-
+        
                     var extension = Path.GetExtension(filePath);
+                    
                     artefact = extension.Equals(".ps1")
                         ? Encoding.UTF8.GetBytes(await File.ReadAllTextAsync(filePath))
                         : await File.ReadAllBytesAsync(filePath);
-
-                    
-                }    
+                }
             }
-            
+        
             // remove filepath from args
             if (!string.IsNullOrEmpty(filePath))
                 args = args.Where(s => !s.Equals(filePath)).ToArray();
-
+        
             await _api.TaskDrone(ScreenName, module.Name, command.Name, args, artefact);
-            return true;
         }
-        
-        private void OnDroneModuleLoaded(string droneGuid, DroneModule module)
+
+        private void OnDroneModuleLoaded(DroneMetadata metadata, DroneModule module)
         {
-            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
-            
-            Drone.Modules.Add(module);
-            
-            foreach (var command in module.Commands)
+            if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
+
+            var existing = Drone.Modules.FirstOrDefault(m =>
+                m.Name.Equals(module.Name));
+
+            if (existing is not null)
             {
-                Commands.Add(new ScreenCommand(
-                    name: command.Name,
-                    description: command.Description,
-                    usage: command.Usage,
-                    callback: ExecuteDroneCommand));
+                var index = Drone.Modules.IndexOf(existing);
+                Drone.Modules[index] = module;
             }
+            else
+            {
+                Drone.Modules.Add(module);    
+            }
+            
+            AddModuleCommandsToScreen(module.Commands);
         }
 
-        private void OnDroneTasked(string droneGuid, string taskGuid)
+        private void OnDroneTasked(DroneMetadata metadata, DroneTaskResponse task)
         {
-            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
-            CustomConsole.WriteMessage($"Drone tasked: {taskGuid}");
+            if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
+            Console.PrintMessage($"Drone tasked ({task.TaskGuid}) to run {task.Command}");
         }
         
-        private void OnDroneDataSent(string droneGuid, int size)
+        private void OnDroneDataSent(DroneMetadata metadata, int size)
         {
-            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
-            CustomConsole.WriteMessage($"Drone checked in. Sent {size} bytes.");
+            if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
+            Console.PrintMessage($"Drone checked in. Sent {size} bytes.");
         }
 
-        private void OnDroneTaskRunning(string droneGuid, byte[] output)
+        private void OnDroneTaskRunning(DroneMetadata metadata, DroneTaskUpdate task)
         {
-            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
-            if (output is null || output.Length == 0) return;
-
-            var text = Encoding.UTF8.GetString(output);
-            CustomConsole.WriteMessage("Output received:");
+            if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
+            if (task.Result is null || task.Result.Length == 0) return;
+        
+            var text = Encoding.UTF8.GetString(task.Result);
+            Console.PrintMessage("Output received:");
             Console.WriteLine(text);
         }
         
-        private void OnDroneTaskComplete(string droneGuid, byte[] output)
+        private void OnDroneTaskComplete(DroneMetadata metadata, DroneTaskUpdate task)
         {
-            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
-
-            if (output is not null && output.Length > 0)
+            if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
+        
+            if (task.Result is not null && task.Result.Length > 0)
             {
-                var text = Encoding.UTF8.GetString(output);
-                CustomConsole.WriteMessage("Output received:");
+                var text = Encoding.UTF8.GetString(task.Result);
+                Console.PrintMessage("Output received:");
                 Console.WriteLine(text);
             }
-
-            CustomConsole.WriteMessage("Task complete.");
+        
+            Console.PrintMessage("Task complete.");
         }
         
-        private void OnDroneTaskAborted(string droneGuid, byte[] error)
+        private void OnDroneTaskAborted(DroneMetadata metadata, DroneTaskUpdate task)
         {
-            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
-            CustomConsole.WriteWarning("Task threw an exception.");
-
-            if (error is null || error.Length <= 0) return;
-            
-            var text = Encoding.UTF8.GetString(error);
-            CustomConsole.WriteWarning(text);
+            if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
+            Console.PrintWarning("Task threw an exception.");
+        
+            if (task.Result is null || task.Result.Length <= 0) return;
+        
+            var text = Encoding.UTF8.GetString(task.Result);
+            Console.PrintWarning(text);
         }
         
-        private void OnDroneTaskCancelled(string droneGuid, string taskGuid)
+        private void OnDroneTaskCancelled(DroneMetadata metadata, DroneTaskUpdate task)
         {
-            if (!droneGuid.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)) return;
-            CustomConsole.WriteWarning($"Task {taskGuid} cancelled");
+            if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
+            Console.PrintWarning($"Task {task.TaskGuid} cancelled");
         }
 
-        protected override void Dispose(bool disposing)
+        private async Task LoadDroneData()
         {
+            Drone = await _api.GetDrone(ScreenName);
+
+            foreach (var module in Drone.Modules)
+                AddModuleCommandsToScreen(module.Commands);
+        }
+
+        public void Dispose()
+        {
+            _signalR.DroneModuleLoaded -= OnDroneModuleLoaded;
             _signalR.DroneTasked -= OnDroneTasked;
             _signalR.DroneDataSent -= OnDroneDataSent;
             _signalR.DroneTaskRunning -= OnDroneTaskRunning;
             _signalR.DroneTaskComplete -= OnDroneTaskComplete;
-        }
-
-        public override async Task LoadInitialData()
-        {
-            if (string.IsNullOrEmpty(ScreenName)) return;
-            Drone = await _api.GetDrone(ScreenName);
-        }
-    }
-    
-    public class DroneInteractAutoComplete : AutoCompleteHandler
-    {
-        private readonly DroneInteractScreen _screen;
-
-        public DroneInteractAutoComplete(DroneInteractScreen screen)
-        {
-            _screen = screen;
-        }
-
-        public override string[] GetSuggestions(string text, int index)
-        {
-            var commands = _screen.Commands.Select(c => c.Name).ToArray();
-            var split = text.Split(' ');
-
-            if (split.Length == 1)
-            {
-                return string.IsNullOrEmpty(split[0])
-                    ? commands
-                    : commands.Where(c => c.StartsWith(split[0])).ToArray();
-            }
-
-            List<DroneModule.Command> droneCommands = new();
-            foreach (var droneModule in _screen.Drone.Modules)
-                droneCommands.AddRange(droneModule.Commands);
-
-            var matchedCommand = droneCommands.FirstOrDefault(c => c.Name.Equals(split[0], StringComparison.OrdinalIgnoreCase));
-            if (matchedCommand is null) return split[0].StartsWith("help") ? commands : Array.Empty<string>();
-
-            if (matchedCommand.Arguments.Length >= split.Length - 1)
-            {
-                var arg = matchedCommand.Arguments[split.Length - 2];
-                if (arg.Artefact) return Extensions.GetPartialPath(split[1]).ToArray();
-            }
-
-            return Array.Empty<string>();
+            _signalR.DroneTaskAborted -= OnDroneTaskAborted;
+            _signalR.DroneTaskCancelled -= OnDroneTaskCancelled;
         }
     }
 }

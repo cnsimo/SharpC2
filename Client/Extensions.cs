@@ -1,8 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 
 using PrettyPrompt.Consoles;
 
@@ -14,7 +10,7 @@ namespace SharpC2
         {
             var currentColour = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Green;
-            console.WriteLine(Environment.NewLine + $"[+] {message}" + Environment.NewLine);
+            console.WriteLine($"[+] {message}");
             Console.ForegroundColor = currentColour;
         }
         
@@ -22,7 +18,7 @@ namespace SharpC2
         {
             var currentColour = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            console.WriteLine(Environment.NewLine + $"[!] {warning}" + Environment.NewLine);
+            console.WriteLine($"[!] {warning}");
             Console.ForegroundColor = currentColour;
         }
         
@@ -30,22 +26,8 @@ namespace SharpC2
         {
             var currentColour = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.DarkRed;
-            console.WriteLine(Environment.NewLine + $"[x] {error}" + Environment.NewLine);
+            console.WriteLine($"[x] {error}");
             Console.ForegroundColor = currentColour;
-        }
-        
-        public static IEnumerable<string> GetPartialPath(string path)
-        {
-            // could be something like C:\Users or /Users
-            var index = path.LastIndexOf(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? '\\' : '/');
-            index++;
-
-            var partial = path[..index];
-
-            if (!Directory.Exists(partial)) return Array.Empty<string>();
-
-            return Directory.EnumerateFileSystemEntries(partial)
-                .Where(p => p.StartsWith(path)).ToArray();
         }
     }
 }

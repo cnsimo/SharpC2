@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 
 namespace SharpC2.Models
 {
@@ -14,6 +15,16 @@ namespace SharpC2.Models
             PowerShell = 2,
             Raw = 3,
             Svc = 4
+        }
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            
+            sb.AppendLine($"Handler: {Handler}");
+            sb.AppendLine($"Format: {Format}");
+
+            return sb.ToString();
         }
 
         protected internal override IList<SharpSploitResultProperty> ResultProperties =>

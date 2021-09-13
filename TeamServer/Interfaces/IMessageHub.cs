@@ -8,20 +8,20 @@ namespace TeamServer.Interfaces
 {
     public interface IMessageHub
     {
-        Task HandlerLoaded(string handler);
+        Task HandlerLoaded(HandlerResponse handler);
         Task HandlerStarted(HandlerResponse handler);
         Task HandlerStopped(HandlerResponse handler);
 
         Task HostedFileAdded(string filename);
         Task HostedFileDeleted(string filename);
 
-        Task DroneCheckedIn(string droneGuid);
-        Task DroneModuleLoaded(string droneGuid, DroneModule module);
-        Task DroneDataSent(string droneGuid, int messageSize);
-        Task DroneTasked(string droneGuid, string taskGuid);
-        Task DroneTaskRunning(string droneGuid, byte[] result);
-        Task DroneTaskComplete(string droneGuid, byte[] result);
-        Task DroneTaskCancelled(string droneGuid, string taskGuid);
-        Task DroneTaskAborted(string droneGuid, byte[] error);
+        Task DroneCheckedIn(DroneMetadata metadata);
+        Task DroneModuleLoaded(DroneMetadata metadata, DroneModule module);
+        Task DroneTasked(DroneMetadata metadata, DroneTaskResponse task);
+        Task DroneDataSent(DroneMetadata metadata, int messageSize);
+        Task DroneTaskRunning(DroneMetadata metadata, DroneTaskUpdate task);
+        Task DroneTaskComplete(DroneMetadata metadata, DroneTaskUpdate task);
+        Task DroneTaskCancelled(DroneMetadata metadata, DroneTaskUpdate task);
+        Task DroneTaskAborted(DroneMetadata metadata, DroneTaskUpdate task);
     }
 }

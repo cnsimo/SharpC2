@@ -5,17 +5,18 @@ namespace SharpC2.Models
 {
     public class Drone : SharpSploitResult
     {
-        public string Guid { get; set; }
-        public string Address { get; set; }
-        public string Hostname { get; set; }
-        public string Username { get; set; }
-        public string Process { get; set; }
-        public int Pid { get; set; }
-        public DroneIntegrity Integrity { get; set; }
-        public DroneArch Arch { get; set; }
+        public DroneMetadata Metadata { get; set; }
         public DateTime LastSeen { get; set; }
 
-        public List<DroneModule> Modules { get; set; }
+        public List<DroneModule> Modules { get; set; } = new();
+
+        // for automapper
+        public Drone() { }
+
+        public Drone(DroneMetadata metadata)
+        {
+            Metadata = metadata;
+        }
 
         public double LastSeenSeconds
         {
@@ -25,31 +26,28 @@ namespace SharpC2.Models
                 return Math.Round(time, 2);
             }
         }
-        
-        public enum DroneIntegrity
+
+        public void CheckIn()
         {
-            Medium,
-            High,
-            SYSTEM
+            LastSeen = DateTime.UtcNow;
         }
 
-        public enum DroneArch
+        public override string ToString()
         {
-            x86,
-            x64
+            return $"{Metadata.Username}@{Metadata.Hostname} ({Metadata.Process}:{Metadata.Pid})";
         }
 
         protected internal override IList<SharpSploitResultProperty> ResultProperties =>
             new List<SharpSploitResultProperty>
             {
-                new() {Name = "Guid", Value = Guid},
-                new() {Name = "Address", Value = Address},
-                new() {Name = "Hostname", Value = Hostname},
-                new() {Name = "Username", Value = Username},
-                new() {Name = "Process", Value = Process},
-                new() {Name = "PID", Value = Pid},
-                new() {Name = "Integrity", Value = Integrity},
-                new() {Name = "Arch", Value = Arch},
+                new() {Name = "Guid", Value = Metadata.Guid},
+                new() {Name = "Address", Value = Metadata.Address},
+                new() {Name = "Hostname", Value = Metadata.Hostname},
+                new() {Name = "Username", Value = Metadata.Username},
+                new() {Name = "Process", Value = Metadata.Process},
+                new() {Name = "PID", Value = Metadata.Pid},
+                new() {Name = "Integrity", Value = Metadata.Integrity},
+                new() {Name = "Arch", Value = Metadata.Arch},
                 new() {Name = "LastSeen", Value = $"{LastSeenSeconds}s"}
             };
     }

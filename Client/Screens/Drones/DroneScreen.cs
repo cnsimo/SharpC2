@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
+using System.Threading.Tasks;
+using PrettyPrompt.Completion;
 using SharpC2.Models;
 using SharpC2.ScreenCommands;
 using SharpC2.Services;
@@ -11,24 +12,94 @@ namespace SharpC2.Screens
     public class DroneScreen : Screen, IDisposable
     {
         public override string ScreenName => "drones";
-        
-        public ApiService Api { get; }
+
         public ScreenFactory ScreenFactory { get; }
         
+        private readonly ApiService _api;
         private readonly SignalRService _signalR;
         
         public List<Drone> Drones { get; } = new();
 
         public DroneScreen(ApiService api, SignalRService signalR, ScreenFactory screens)
         {
-            Api = api;
+            _api = api;
             _signalR = signalR;
             ScreenFactory = screens;
 
             _signalR.DroneCheckedIn += OnDroneCheckIn;
             
+            ClientCommands.Add(new ListDronesCommand(this));
+            ClientCommands.Add(new OpenDroneInteractScreen(this));
+            
             ClientCommands.Add(new OpenHandlersScreenCommand(this));
+            ClientCommands.Add(new OpenPayloadsScreenCommand(this));
+            
             ClientCommands.Add(new ExitClientCommand(this));
+            
+            LoadDroneData().GetAwaiter().GetResult();
+        }
+
+        public async Task LoadDroneData()
+        {
+            var drones = (await _api.GetDrones()).ToArray();
+
+            foreach (var drone in drones)
+            {
+                var existing = Drones.FirstOrDefault(d =>
+                    d.Metadata.Guid.Equals(drone.Metadata.Guid, StringComparison.OrdinalIgnoreCase));
+
+                if (existing is not null)
+                {
+                    var index = Drones.IndexOf(existing);
+                    Drones[index] = drone;
+                }
+                else
+                {
+                    Drones.Add(drone);
+                }
+            }
+        }
+
+        protected override Task<IReadOnlyList<CompletionItem>> FindCompletions(string input, int caret)
+        {
+            var textUntilCaret = input[..caret];
+            var previousWordStart = textUntilCaret.LastIndexOfAny(new[] { ' ', '\n', '.', '(', ')' });
+            
+            var typedWord = previousWordStart == -1
+                ? textUntilCaret.ToLower()
+                : textUntilCaret[(previousWordStart + 1)..].ToLower();
+            
+            var previousWord = previousWordStart == -1
+                ? ""
+                : input[..previousWordStart];
+
+            if (previousWord.Equals("interact", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                    Drones
+                        .Select(d => new CompletionItem
+                        {
+                            StartIndex = previousWordStart + 1,
+                            ReplacementText = d.Metadata.Guid,
+                            DisplayText = d.Metadata.Guid,
+                            ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(d.ToString()))
+                        })
+                        .ToArray()
+                );
+            }
+
+            return Task.FromResult<IReadOnlyList<CompletionItem>>(
+                ClientCommands
+                    .Where(command => command.Name.StartsWith(typedWord))
+                    .Select(command => new CompletionItem
+                    {
+                        StartIndex = previousWordStart + 1,
+                        ReplacementText = command.Name,
+                        DisplayText = command.Name,
+                        ExtendedDescription = new Lazy<Task<string>>(() => Task.FromResult(command.Description))
+                    })
+                    .ToArray()
+            );
         }
 
         // public override void AddCommands()
@@ -118,12 +189,18 @@ namespace SharpC2.Screens
         //     return true;
         // }
         
-        private void OnDroneCheckIn(string droneGuid)
+        private void OnDroneCheckIn(DroneMetadata metadata)
         {
-            if (Drones.Any(d => d.Guid.Equals(droneGuid, StringComparison.OrdinalIgnoreCase))) return;
+            var existing = Drones.FirstOrDefault(d => d.Metadata.Guid.Equals(metadata.Guid));
             
-            Console.PrintMessage($"Drone {droneGuid} checked in.");
-            Drones.Add(new Drone{Guid = droneGuid});
+            if (existing is not null)
+            {
+                existing.CheckIn();
+                return;
+            }
+            
+            Console.PrintMessage($"New Drone \"{metadata.Guid}\" checked in from {metadata.Hostname} as {metadata.Username}.");
+            Drones.Add(new Drone(metadata));
         }
 
         public void Dispose()
@@ -131,32 +208,4 @@ namespace SharpC2.Screens
             _signalR.DroneCheckedIn -= OnDroneCheckIn;
         }
     }
-    
-    // public class DronesAutoComplete : AutoCompleteHandler
-    // {
-    //     private readonly DroneScreen _screen;
-    //
-    //     public DronesAutoComplete(DroneScreen screen)
-    //     {
-    //         _screen = screen;
-    //     }
-    //
-    //     public override string[] GetSuggestions(string text, int index)
-    //     {
-    //         var commands = _screen.Commands.Select(c => c.Name).ToArray();
-    //         var split = text.Split(' ');
-    //
-    //         if (split.Length == 1)
-    //         {
-    //             return string.IsNullOrEmpty(split[0])
-    //                 ? commands
-    //                 : commands.Where(c => c.StartsWith(split[0])).ToArray();
-    //         }
-    //
-    //         if (split.Length == 2)
-    //             return _screen.Drones.Select(d => d.Guid).ToArray();
-    //
-    //         return Array.Empty<string>();
-    //     }
-    // }
 }

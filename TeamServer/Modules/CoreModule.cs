@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
-
+using AutoMapper;
+using SharpC2.API.V1.Responses;
 using TeamServer.Models;
 
 namespace TeamServer.Modules
@@ -8,7 +9,7 @@ namespace TeamServer.Modules
     {
         public override string Name { get; } = "Core";
         public override string Description { get; } = "Handles basic Drone text output.";
-        
+
         public override async Task Execute(DroneMetadata metadata, DroneTaskUpdate update)
         {
             var drone = Drones.GetDrone(metadata.Guid);
@@ -21,19 +22,19 @@ namespace TeamServer.Modules
             switch (update.Status)
             {
                 case DroneTaskUpdate.TaskStatus.Running:
-                    await Hub.Clients.All.DroneTaskRunning(metadata.Guid, update.Result);
+                    await Hub.Clients.All.DroneTaskRunning(metadata, update);
                     break;
                 
                 case DroneTaskUpdate.TaskStatus.Complete:
-                    await Hub.Clients.All.DroneTaskComplete(metadata.Guid, update.Result);
+                    await Hub.Clients.All.DroneTaskComplete(metadata, update);
                     break;
                 
                 case DroneTaskUpdate.TaskStatus.Cancelled:
-                    await Hub.Clients.All.DroneTaskCancelled(metadata.Guid, update.TaskGuid);
+                    await Hub.Clients.All.DroneTaskCancelled(metadata, update);
                     break;
                 
                 case DroneTaskUpdate.TaskStatus.Aborted:
-                    await Hub.Clients.All.DroneTaskAborted(metadata.Guid, update.Result);
+                    await Hub.Clients.All.DroneTaskAborted(metadata, update);
                     break;
             }
         }

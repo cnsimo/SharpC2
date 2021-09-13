@@ -29,14 +29,14 @@ namespace SharpC2.Services
         public event Action<string> HostedFileDeleted;
         
         //Drones
-        public event Action<string> DroneCheckedIn;
-        public event Action<string, DroneModule> DroneModuleLoaded;
-        public event Action<string, string> DroneTasked;
-        public event Action<string, int> DroneDataSent;
-        public event Action<string, byte[]> DroneTaskRunning;
-        public event Action<string, byte[]> DroneTaskComplete;
-        public event Action<string, string> DroneTaskCancelled;
-        public event Action<string, byte[]> DroneTaskAborted;
+        public event Action<DroneMetadata> DroneCheckedIn;
+        public event Action<DroneMetadata, DroneModule> DroneModuleLoaded;
+        public event Action<DroneMetadata, DroneTaskResponse> DroneTasked;
+        public event Action<DroneMetadata, int> DroneDataSent;
+        public event Action<DroneMetadata, DroneTaskUpdate> DroneTaskRunning;
+        public event Action<DroneMetadata, DroneTaskUpdate> DroneTaskComplete;
+        public event Action<DroneMetadata, DroneTaskUpdate> DroneTaskCancelled;
+        public event Action<DroneMetadata, DroneTaskUpdate> DroneTaskAborted;
 
         public async Task Connect(string hostname, string port, string nick, string pass)
         {
@@ -62,14 +62,14 @@ namespace SharpC2.Services
             connection.On<string>("HostedFileAdded", filename => HostedFileAdded?.Invoke(filename));
             connection.On<string>("HostedFileDeleted", filename => HostedFileDeleted?.Invoke(filename));
 
-            connection.On<string>("DroneCheckedIn", (drone) => DroneCheckedIn?.Invoke(drone));
-            connection.On<string, DroneModule>("DroneModuleLoaded", (drone, module) => DroneModuleLoaded?.Invoke(drone, module));
-            connection.On<string, string>("DroneTasked", (drone, task) => DroneTasked?.Invoke(drone, task));
-            connection.On<string, int>("DroneDataSent", (drone, size) => DroneDataSent?.Invoke(drone, size));
-            connection.On<string, byte[]>("DroneTaskRunning", (drone, result) => DroneTaskRunning?.Invoke(drone, result));
-            connection.On<string, byte[]>("DroneTaskComplete", (drone, result) => DroneTaskComplete?.Invoke(drone, result));
-            connection.On<string, string>("DroneTaskCancelled", (drone, task) => DroneTaskCancelled?.Invoke(drone, task));
-            connection.On<string, byte[]>("DroneTaskAborted", (drone, error) => DroneTaskAborted?.Invoke(drone, error));
+            connection.On<DroneMetadata>("DroneCheckedIn", d => DroneCheckedIn?.Invoke(d));
+            connection.On<DroneMetadata, DroneModule>("DroneModuleLoaded", (d, m) => DroneModuleLoaded?.Invoke(d, m));
+            connection.On<DroneMetadata, DroneTaskResponse>("DroneTasked", (d, t) => DroneTasked?.Invoke(d, t));
+            connection.On<DroneMetadata, int>("DroneDataSent", (d, s) => DroneDataSent?.Invoke(d, s));
+            connection.On<DroneMetadata, DroneTaskUpdate>("DroneTaskRunning", (r, t) => DroneTaskRunning?.Invoke(r, t));
+            connection.On<DroneMetadata, DroneTaskUpdate>("DroneTaskComplete", (d, t) => DroneTaskComplete?.Invoke(d, t));
+            connection.On<DroneMetadata, DroneTaskUpdate>("DroneTaskCancelled", (d, t) => DroneTaskCancelled?.Invoke(d, t));
+            connection.On<DroneMetadata, DroneTaskUpdate>("DroneTaskAborted", (d, t) => DroneTaskAborted?.Invoke(d, t));
         }
     }
 }
