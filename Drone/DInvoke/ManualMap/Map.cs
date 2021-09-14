@@ -406,5 +406,25 @@ namespace Drone.DInvoke.ManualMap
 
             return ManMapObject;
         }
+        
+        public static void FreeModule(Data.PE.PE_MANUAL_MAP PEMapped)
+        {
+            // Check if PE was mapped via module overloading
+            if (!string.IsNullOrEmpty(PEMapped.DecoyModule))
+            {
+                DynamicInvoke.Native.NtUnmapViewOfSection((IntPtr)(-1), PEMapped.ModuleBase);
+            }
+            // If PE not mapped via module overloading, free the memory.
+            else
+            {
+                Data.PE.PE_META_DATA PEINFO = PEMapped.PEINFO;
+
+                // Get the size of the module in memory
+                IntPtr size = PEINFO.Is32Bit ? (IntPtr)PEINFO.OptHeader32.SizeOfImage : (IntPtr)PEINFO.OptHeader64.SizeOfImage;
+                IntPtr pModule = PEMapped.ModuleBase;
+
+                DynamicInvoke.Native.NtFreeVirtualMemory((IntPtr)(-1), ref pModule, ref size, Data.Win32.Kernel32.MEM_RELEASE);
+            }
+        }
     }
 }

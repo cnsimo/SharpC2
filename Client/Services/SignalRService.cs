@@ -30,6 +30,7 @@ namespace SharpC2.Services
         
         //Drones
         public event Action<DroneMetadata> DroneCheckedIn;
+        public event Action<string> DroneDeleted;
         public event Action<DroneMetadata, DroneModule> DroneModuleLoaded;
         public event Action<DroneMetadata, DroneTaskResponse> DroneTasked;
         public event Action<DroneMetadata, int> DroneDataSent;
@@ -63,6 +64,7 @@ namespace SharpC2.Services
             connection.On<string>("HostedFileDeleted", filename => HostedFileDeleted?.Invoke(filename));
 
             connection.On<DroneMetadata>("DroneCheckedIn", d => DroneCheckedIn?.Invoke(d));
+            connection.On<string>("DroneDeleted", d => DroneDeleted?.Invoke(d));
             connection.On<DroneMetadata, DroneModule>("DroneModuleLoaded", (d, m) => DroneModuleLoaded?.Invoke(d, m));
             connection.On<DroneMetadata, DroneTaskResponse>("DroneTasked", (d, t) => DroneTasked?.Invoke(d, t));
             connection.On<DroneMetadata, int>("DroneDataSent", (d, s) => DroneDataSent?.Invoke(d, s));

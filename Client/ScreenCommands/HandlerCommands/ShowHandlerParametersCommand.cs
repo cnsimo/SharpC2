@@ -23,6 +23,12 @@ namespace SharpC2.ScreenCommands
 
         private Task ShowHandlerParameters(string[] args)
         {
+            if (args.Length < 1)
+            {
+                _screen.Console.PrintError("Not enough arguments");
+                return Task.CompletedTask;
+            }
+            
             var handlerName = args[1];
             var handler = ((HandlersScreen)_screen).Handlers.FirstOrDefault(h =>
                 h.Name.Equals(handlerName, StringComparison.OrdinalIgnoreCase));

@@ -175,7 +175,7 @@ namespace Drone
             _handler.QueueOutbound(message);
         }
 
-        public void CancelTask(string taskGuid)
+        public void AbortTask(string taskGuid)
         {
             var token = _taskTokens[taskGuid];
             token.Cancel();

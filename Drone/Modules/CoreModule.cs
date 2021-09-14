@@ -21,6 +21,10 @@ namespace Drone.Modules
             {
                 new("/path/to/module.dll", false, true)
             }),
+            new("abort", "Abort a running task", AbortTask, new List<Command.Argument>
+            {
+                new("task-guid", false)
+            }),
             new("exit", "Exit this Drone", ExitDrone)
         };
 
@@ -39,6 +43,11 @@ namespace Drone.Modules
             var asm = transact.Load(bytes);
             
             Drone.LoadDroneModule(asm);
+        }
+
+        private void AbortTask(DroneTask task, CancellationToken token)
+        {
+            Drone.AbortTask(task.Arguments[0]);
         }
 
         private void ExitDrone(DroneTask task, CancellationToken token)

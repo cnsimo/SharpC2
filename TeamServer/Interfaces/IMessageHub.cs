@@ -16,6 +16,7 @@ namespace TeamServer.Interfaces
         Task HostedFileDeleted(string filename);
 
         Task DroneCheckedIn(DroneMetadata metadata);
+        Task DroneDeleted(string droneGuid);
         Task DroneModuleLoaded(DroneMetadata metadata, DroneModule module);
         Task DroneTasked(DroneMetadata metadata, DroneTaskResponse task);
         Task DroneDataSent(DroneMetadata metadata, int messageSize);

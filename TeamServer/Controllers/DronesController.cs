@@ -92,11 +92,12 @@ namespace TeamServer.Controllers
         }
 
         [HttpDelete("{droneGuid}")]
-        public IActionResult RemoveDrone(string droneGuid)
+        public async Task<IActionResult> RemoveDrone(string droneGuid)
         {
             var result = _drones.RemoveDrone(droneGuid);
             if (!result) return NotFound();
 
+            await _hub.Clients.All.DroneDeleted(droneGuid);
             return NoContent();
         }
 
@@ -114,7 +115,6 @@ namespace TeamServer.Controllers
             
             drone.DeletePendingTask(task);
             return NoContent();
-
         }
     }
 }

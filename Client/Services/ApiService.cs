@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -146,6 +147,21 @@ namespace SharpC2.Services
             var response = await _client.ExecuteAsync<DroneTaskResponse>(request);
 
             return _mapper.Map<DroneTaskResponse, DroneTask>(response.Data);
+        }
+
+        public async Task CancelPendingTask(string droneGuid, string taskGuid)
+        {
+            var request = new RestRequest($"{Routes.V1.Drones}/{droneGuid}/tasks/{taskGuid}", Method.DELETE);
+            var response = await _client.ExecuteAsync(request);
+
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+                throw new Exception(response.Content);
+        }
+
+        public async Task DeleteDrone(string droneGuid)
+        {
+            var request = new RestRequest($"{Routes.V1.Drones}/{droneGuid}", Method.DELETE);
+            await _client.ExecuteAsync(request);
         }
 
         public async Task<IEnumerable<HostedFile>> GetHostedFiles()

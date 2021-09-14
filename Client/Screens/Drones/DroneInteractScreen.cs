@@ -17,8 +17,8 @@ namespace SharpC2.Screens
     public class DroneInteractScreen : Screen, IDisposable
     {
         public override string ScreenName { get; }
+        public ApiService Api { get; }
         
-        private readonly ApiService _api;
         private readonly SignalRService _signalR;
 
         public Drone Drone { get; private set; }
@@ -26,11 +26,12 @@ namespace SharpC2.Screens
         public DroneInteractScreen(string droneGuid, ApiService api, SignalRService signalR)
         {
             ScreenName = droneGuid;
+            Api = api;
             
-            _api = api;
             _signalR = signalR;
             
             ClientCommands.Add(new BackScreenCommand(this));
+            ClientCommands.Add(new CancelPendingTaskCommand(this));
 
             _signalR.DroneModuleLoaded += OnDroneModuleLoaded;
             _signalR.DroneTasked += OnDroneTasked;
@@ -163,7 +164,7 @@ namespace SharpC2.Screens
             if (!string.IsNullOrEmpty(filePath))
                 args = args.Where(s => !s.Equals(filePath)).ToArray();
         
-            await _api.TaskDrone(ScreenName, module.Name, command.Name, args, artefact);
+            await Api.TaskDrone(ScreenName, module.Name, command.Name, args, artefact);
         }
 
         private void OnDroneModuleLoaded(DroneMetadata metadata, DroneModule module)
@@ -241,7 +242,7 @@ namespace SharpC2.Screens
 
         private async Task LoadDroneData()
         {
-            Drone = await _api.GetDrone(ScreenName);
+            Drone = await Api.GetDrone(ScreenName);
 
             foreach (var module in Drone.Modules)
                 AddModuleCommandsToScreen(module.Commands);

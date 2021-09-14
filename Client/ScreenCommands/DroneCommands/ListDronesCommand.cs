@@ -9,7 +9,7 @@ namespace SharpC2.ScreenCommands
     public class ListDronesCommand : ScreenCommand
     {
         public override string Name => "list";
-        public override string Description => "list";
+        public override string Description => "List Drones";
         public override string Usage { get; }
         public override Screen.CommandCallback Callback => ListDrones;
 

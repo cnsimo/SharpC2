@@ -213,6 +213,8 @@ namespace Drone
                 funcParams);
 
             Drone.SendResult(task.TaskGuid, result);
+            
+            Map.FreeModule(map);
         }
         
         private void SetBypass(DroneTask task, CancellationToken token)
