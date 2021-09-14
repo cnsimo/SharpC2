@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 
-using TeamServer.Handlers;
+using SharpC2.API.V1.Responses;
 
 using Xunit;
 
@@ -26,7 +26,7 @@ namespace SharpC2.API.IntegrationTests
             const string handlerName = "default-http";
             
             var response = await Client.GetAsync($"{Routes.V1.Handlers}/{handlerName}");
-            var handler = await response.Content.ReadFromJsonAsync<DefaultHttpHandler>();
+            var handler = await response.Content.ReadFromJsonAsync<HandlerResponse>();
             
             Assert.True(response.IsSuccessStatusCode);
             Assert.NotNull(handler);
