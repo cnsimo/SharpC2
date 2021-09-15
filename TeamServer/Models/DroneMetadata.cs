@@ -3,6 +3,7 @@ namespace TeamServer.Models
     public class DroneMetadata
     {
         public string Guid { get; set; }
+        // TODO: add external network ip address
         public string Address { get; set; }
         public string Hostname { get; set; }
         public string Username { get; set; }

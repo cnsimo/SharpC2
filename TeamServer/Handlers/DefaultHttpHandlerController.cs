@@ -26,8 +26,14 @@ namespace TeamServer.Handlers
 
         public async Task<IActionResult> RouteDrone()
         {
+            // FIXME: 修改流量标识
             // troll if X-Malware header isn't present
             if (!HttpContext.Request.Headers.TryGetValue("X-Malware", out _)) return NotFound();
+
+            // TODO: 上线认证，通过多种方式实现
+            //         1. 生成的每个 implant 中内置不同 key，key 保留在服务端一份，相同 key 不能上线 n 次，
+            //            n 是可自定义的，避免使用相同 payload 疯狂上线进行重放攻击，即一个限制一个 payload 可重复使用的次数
+            //         2. 验证上线 url，验证通信秘钥，算法参考 CobaltStrike
 
             // first, extract drone metadata
             var metadata = ExtractMetadata(HttpContext.Request.Headers);
