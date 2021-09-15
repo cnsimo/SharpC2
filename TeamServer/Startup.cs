@@ -56,6 +56,7 @@ namespace TeamServer
             services.AddSingleton<ITaskService, TaskService>();
             services.AddSingleton<IDroneService, DroneService>();
             services.AddSingleton<IServerService, ServerService>();
+            services.AddSingleton<ICredentialService, CredentialService>();
 
             services.AddAutoMapper(typeof(Startup));
         }

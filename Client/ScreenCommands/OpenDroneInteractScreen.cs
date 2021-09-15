@@ -23,6 +23,12 @@ namespace SharpC2.ScreenCommands
 
         private async Task Interact(string[] args)
         {
+            if (args.Length < 2)
+            {
+                _screen.Console.PrintError("Not enough arguments");
+                return;
+            }
+            
             var screen = (DroneScreen)_screen;
             var droneGuid = args[1];
 

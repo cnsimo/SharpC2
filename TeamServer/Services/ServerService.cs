@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.SignalR;
@@ -19,13 +20,15 @@ namespace TeamServer.Services
         private C2Profile _profile; 
             
         private readonly IDroneService _drones;
+        private readonly ICredentialService _credentials;
         private readonly IHubContext<MessageHub, IMessageHub> _hub;
         
         private readonly List<Module> _modules = new();
 
-        public ServerService(IDroneService drones, IHubContext<MessageHub, IMessageHub> hub)
+        public ServerService(IDroneService drones, ICredentialService credentials, IHubContext<MessageHub, IMessageHub> hub)
         {
             _drones = drones;
+            _credentials = credentials;
             _hub = hub;
             
             LoadDefaultModules();
@@ -102,6 +105,9 @@ namespace TeamServer.Services
 
             if (module is null) return;
             await module.Execute(metadata, update);
+            
+            if (update.Result?.Length > 0)
+                _credentials.ScrapeCredentials(Encoding.UTF8.GetString(update.Result));
         }
 
         private async Task HandleRegisterDroneModule(DroneMetadata metadata, DroneModule module)
