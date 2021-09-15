@@ -21,7 +21,7 @@ namespace SharpC2.Screens
         
         private readonly SignalRService _signalR;
 
-        public Drone Drone { get; private set; }
+        private Drone _drone;
 
         public DroneInteractScreen(string droneGuid, ApiService api, SignalRService signalR)
         {
@@ -31,6 +31,7 @@ namespace SharpC2.Screens
             _signalR = signalR;
             
             ClientCommands.Add(new BackScreenCommand(this));
+            ClientCommands.Add(new GetHelpCommand(this));
             ClientCommands.Add(new CancelPendingTaskCommand(this));
 
             _signalR.DroneModuleLoaded += OnDroneModuleLoaded;
@@ -95,7 +96,7 @@ namespace SharpC2.Screens
         private async Task ExecuteDroneCommand(string[] args)
         {
             // get the module from alias
-            var module = Drone.Modules.FirstOrDefault(m =>
+            var module = _drone.Modules.FirstOrDefault(m =>
                 m.Commands.Any(c =>
                     c.Name.Equals(args[0], StringComparison.OrdinalIgnoreCase)));
         
@@ -171,17 +172,17 @@ namespace SharpC2.Screens
         {
             if (!ScreenName.Equals(metadata.Guid, StringComparison.OrdinalIgnoreCase)) return;
 
-            var existing = Drone.Modules.FirstOrDefault(m =>
+            var existing = _drone.Modules.FirstOrDefault(m =>
                 m.Name.Equals(module.Name));
 
             if (existing is not null)
             {
-                var index = Drone.Modules.IndexOf(existing);
-                Drone.Modules[index] = module;
+                var index = _drone.Modules.IndexOf(existing);
+                _drone.Modules[index] = module;
             }
             else
             {
-                Drone.Modules.Add(module);    
+                _drone.Modules.Add(module);    
             }
             
             AddModuleCommandsToScreen(module.Commands);
@@ -242,9 +243,9 @@ namespace SharpC2.Screens
 
         private async Task LoadDroneData()
         {
-            Drone = await Api.GetDrone(ScreenName);
+            _drone = await Api.GetDrone(ScreenName);
 
-            foreach (var module in Drone.Modules)
+            foreach (var module in _drone.Modules)
                 AddModuleCommandsToScreen(module.Commands);
         }
 
