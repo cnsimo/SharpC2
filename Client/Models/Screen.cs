@@ -20,7 +20,7 @@ namespace SharpC2.Screens
         public delegate Task CommandCallback(string[] args);
 
         public IConsole Console { get; protected set; }
-        public IPrompt Prompt { get; protected set; }
+        private IPrompt _prompt;
 
         protected Screen()
         {
@@ -29,7 +29,7 @@ namespace SharpC2.Screens
 
         public async Task Show()
         {
-            Prompt = new Prompt(null, new PromptCallbacks
+            _prompt = new Prompt(null, new PromptCallbacks
             {
                 CompletionCallback = FindCompletions,
                 KeyPressCallbacks = { [ConsoleKey.Tab] = KeyPressCallback }
@@ -37,7 +37,7 @@ namespace SharpC2.Screens
 
             while (ScreenRunning)
             {
-                var response = await Prompt.ReadLineAsync($"[{ScreenName}] > ");
+                var response = await _prompt.ReadLineAsync($"[{ScreenName}] > ");
 
                 if (!response.IsSuccess) continue;
                 if (string.IsNullOrEmpty(response.Text)) continue;

@@ -191,5 +191,35 @@ namespace SharpC2.Services
             var request = new RestRequest($"{Routes.V1.HostedFiles}/{filename}", Method.DELETE);
             await _client.ExecuteAsync(request);
         }
+
+        public async Task<IEnumerable<CredentialRecord>> GetCredentials()
+        {
+            var request = new RestRequest($"{Routes.V1.Credentials}", Method.GET);
+            var response = await _client.ExecuteAsync<IEnumerable<CredentialRecordResponse>>(request);
+            
+            return _mapper.Map<IEnumerable<CredentialRecordResponse>, IEnumerable<CredentialRecord>>(response.Data);
+        }
+
+        public async Task DeleteCredential(string guid)
+        {
+            var request = new RestRequest($"{Routes.V1.Credentials}/{guid}", Method.DELETE);
+            await _client.ExecuteAsync(request);
+        }
+
+        public async Task AddCredential(string username, string domain, string password, string source = null)
+        {
+            var credential = new AddCredentialRecordRequest
+            {
+                Username = username,
+                Domain = domain,
+                Password = password,
+                Source = string.IsNullOrEmpty(source) ? "API" : source
+            };
+            
+            var request = new RestRequest($"{Routes.V1.Credentials}", Method.POST);
+            request.AddParameter("application/json", JsonSerializer.Serialize(credential), ParameterType.RequestBody);
+            
+            await _client.ExecuteAsync(request);
+        }
     }
 }

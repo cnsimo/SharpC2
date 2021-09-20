@@ -85,6 +85,7 @@ namespace TeamServer.Handlers
             services.AddControllers();
             services.AddSingleton(MessageHub);
             services.AddSingleton(TaskService);
+            services.AddSingleton(CredentialService);
         }
 
         public async Task AddHostedFile(byte[] content, string filename)

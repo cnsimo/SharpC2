@@ -38,6 +38,7 @@ namespace SharpC2.Screens
             ClientCommands.Add(new OpenHandlersScreenCommand(this));
             ClientCommands.Add(new OpenPayloadsScreenCommand(this));
             ClientCommands.Add(new OpenHostedFilesScreenCommand(this));
+            ClientCommands.Add(new OpenCredentialsScreenCommand(this));
             
             ClientCommands.Add(new ExitClientCommand(this));
             
